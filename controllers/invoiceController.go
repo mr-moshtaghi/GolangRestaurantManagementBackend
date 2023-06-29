@@ -45,11 +45,6 @@ func GetInvoices() gin.HandlerFunc {
 
 func GetInvoice() gin.HandlerFunc {
 	return func(c *gin.Context) {
-	}
-}
-
-func CreateInvoice() gin.HandlerFunc {
-	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		invoiceId := c.Param("invoice_id")
 
@@ -79,6 +74,11 @@ func CreateInvoice() gin.HandlerFunc {
 		invoiceView.OrderDetails = allOrderItems[0]["order_items"]
 
 		c.JSON(http.StatusOK, invoiceView)
+	}
+}
+
+func CreateInvoice() gin.HandlerFunc {
+	return func(c *gin.Context) {
 	}
 }
 
