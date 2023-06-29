@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"restaurant-management/database"
+	"restaurant-management/models"
 	"time"
 )
 
@@ -49,6 +50,35 @@ func GetInvoice() gin.HandlerFunc {
 
 func CreateInvoice() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		invoiceId := c.Param("invoice_id")
+
+		var invoice models.Invoice
+
+		err := invoiceCollection.FindOne(ctx, bson.M{"invoice_id": invoiceId}).Decode(&invoice)
+		defer cancel()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "error occured while listing invoice item"})
+		}
+
+		var invoiceView InvoiceViewFormat
+
+		allOrderItems, err := ItemsByOrder(invoice.OrderId)
+		invoiceView.OrderId = invoice.OrderId
+		invoiceView.PaymentDueDate = invoice.PaymentDueDate
+
+		invoiceView.PaymentMethod = "null"
+		if invoice.PaymentMethod != nil {
+			invoiceView.PaymentMethod = *invoice.PaymentMethod
+		}
+
+		invoiceView.InvoiceId = invoice.InvoiceId
+		invoiceView.PaymentStatus = *&invoice.PaymentStatus
+		invoiceView.PaymentDue = allOrderItems[0]["payment_due"]
+		invoiceView.TableNumber = allOrderItems[0]["table_number"]
+		invoiceView.OrderDetails = allOrderItems[0]["order_items"]
+
+		c.JSON(http.StatusOK, invoiceView)
 	}
 }
 
