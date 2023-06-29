@@ -20,6 +20,8 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Logger())
-	routes.UserRouter(router)
+	routes.UserRoutes(router)
 	router.Use(middleware.Auth)
+
+	routes.FoodRoutes(router)
 }
