@@ -2,7 +2,9 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"restaurant-management/database"
 	"restaurant-management/models"
@@ -36,6 +38,34 @@ func GetMenu() gin.HandlerFunc {
 
 func CreateMenu() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var menu models.Menu
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
+		if err := c.BindJSON(&menu); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		validationErr := validate.Struct(menu)
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+			return
+		}
+
+		menu.CreatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		menu.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		menu.ID = primitive.NewObjectID()
+		menu.MenuId = menu.ID.Hex()
+
+		result, insertErr := menuCollection.InsertOne(ctx, menu)
+		if insertErr != nil {
+			msg := fmt.Sprintf("Menu item was not created")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+		defer cancel()
+		c.JSON(http.StatusOK, result)
+		defer cancel()
 	}
 }
 
