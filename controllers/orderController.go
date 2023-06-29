@@ -55,6 +55,47 @@ func GetOrder() gin.HandlerFunc {
 
 func CreateOrder() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var table models.Table
+		var order models.Order
+
+		if err := c.BindJSON(&order); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		validationErr := validate.Struct(order)
+
+		if validationErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr.Error()})
+			return
+		}
+
+		if order.TableId != nil {
+			err := tableCollection.FindOne(ctx, bson.M{"table_id": order.TableId}).Decode(&table)
+			defer cancel()
+			if err != nil {
+				msg := fmt.Sprintf("message:Table was not found")
+				c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+				return
+			}
+		}
+
+		order.CreatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		order.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+
+		order.ID = primitive.NewObjectID()
+		order.OrderId = order.ID.Hex()
+
+		result, insertErr := orderCollection.InsertOne(ctx, order)
+
+		if insertErr != nil {
+			msg := fmt.Sprintf("order item was not created")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+
+		defer cancel()
+		c.JSON(http.StatusOK, result)
 	}
 }
 
@@ -72,18 +113,18 @@ func UpdateOrder() gin.HandlerFunc {
 		}
 
 		if order.TableId != nil {
-			err := menuCollection.FindOne(ctx, bson.M{"tabled_id": order.Table_id}).Decode(&table)
+			err := menuCollection.FindOne(ctx, bson.M{"tabled_id": order.TableId}).Decode(&table)
 			defer cancel()
 			if err != nil {
 				msg := fmt.Sprintf("message:Menu was not found")
 				c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
 				return
 			}
-			updateObj = append(updateObj, bson.E{"menu", order.Table_id})
+			updateObj = append(updateObj, bson.E{"menu", order.TableId})
 		}
 
 		order.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-		updateObj = append(updateObj, bson.E{"updated_at", order.Updated_at})
+		updateObj = append(updateObj, bson.E{"updated_at", order.UpdatedAt})
 
 		upsert := true
 
