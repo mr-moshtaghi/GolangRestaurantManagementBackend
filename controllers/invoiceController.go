@@ -2,9 +2,12 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/http"
 	"restaurant-management/database"
@@ -84,5 +87,57 @@ func CreateInvoice() gin.HandlerFunc {
 
 func UpdateInvoice() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
+		var invoice models.Invoice
+		invoiceId := c.Param("invoice_id")
+
+		if err := c.BindJSON(&invoice); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		filter := bson.M{"invoice_id": invoiceId}
+
+		var updateObj primitive.D
+
+		if invoice.PaymentMethod != nil {
+			updateObj = append(updateObj, bson.E{"payment_method", invoice.PaymentMethod})
+		}
+
+		if invoice.PaymentStatus != nil {
+			updateObj = append(updateObj, bson.E{"payment_status", invoice.PaymentStatus})
+		}
+
+		invoice.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
+		updateObj = append(updateObj, bson.E{"updated_at", invoice.UpdatedAt})
+
+		upsert := true
+		opt := options.UpdateOptions{
+			Upsert: &upsert,
+		}
+
+		status := "PENDING"
+		if invoice.PaymentStatus == nil {
+			invoice.PaymentStatus = &status
+		}
+
+		result, err := invoiceCollection.UpdateOne(
+			ctx,
+			filter,
+			bson.D{
+
+				{"$set", updateObj},
+			},
+			&opt,
+		)
+		if err != nil {
+			msg := fmt.Sprintf("invoice item update failed")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": msg})
+			return
+		}
+
+		defer cancel()
+		c.JSON(http.StatusOK, result)
 	}
 }
