@@ -71,7 +71,7 @@ func CreateMenu() gin.HandlerFunc {
 }
 
 func inTimeSpan(start, end, check time.Time) bool {
-	return start.After(time.Now()) && end.After(start)
+	return start.After(check) && end.After(start)
 }
 
 func UpdateMenu() gin.HandlerFunc {
@@ -104,7 +104,7 @@ func UpdateMenu() gin.HandlerFunc {
 				updateObj = append(updateObj, bson.E{"name", menu.Name})
 			}
 			if menu.Category != "" {
-				updateObj = append(updateObj, bson.E{"name", menu.Category})
+				updateObj = append(updateObj, bson.E{"category", menu.Category})
 			}
 
 			menu.UpdatedAt, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
